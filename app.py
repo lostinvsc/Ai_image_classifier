@@ -6,7 +6,7 @@ import main
 import cv2
 
 # Set Streamlit options
-st.set_option('deprecation.showfileUploaderEncoding', False)
+# st.set_option('deprecation.showfileUploaderEncoding', False)
 
 # Function to set dark mode or light mode
 def set_theme(mode):
@@ -29,7 +29,7 @@ def set_theme(mode):
             }
             .stButton > button {
                 color: #cfcfcf;
-            
+            }
 
             </style>
             """, unsafe_allow_html=True)
@@ -70,7 +70,7 @@ st.markdown("""
         text-align: center;
     }
     </style>
-    <div class="title">Image Classification App <br> By <br> Team Ganja Ka Bhanja</div>
+    <div class="title">Ai Image Classification Web App</div>
     """, unsafe_allow_html=True)
 st.write("")
 

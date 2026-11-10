@@ -1,84 +1,54 @@
-import tensorflow as tf
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
+import os
+from io import BytesIO
+
+import cv2
 import numpy as np
 import requests
 from PIL import Image as PILImage
-from io import BytesIO
-import sys
-from IPython.display import Image, display
+from tensorflow.keras.models import load_model
 
-import cv2
+IMG_SIZE = 299
 
-model = load_model('inceptionv3f.weights.h5')
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inceptionv3f.weights.h5")
+model = load_model(MODEL_PATH, compile=False)
 
-def preprocess_imagefromfile(image):
-    # response = requests.get(image_url)
-    # img = Image.open(BytesIO(response.content))
-#     image=cv2.imread(image_path)
-#     if image is not None:
-#       img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        img = image.resize((299, 299))
-        img_array=np.array(img)
-        img_array=img_array.astype('float64')
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array=img_array[...,:3]
-        img_array /= 255.0
-        return img_array
-#     else:
-#         print("No file Found try to relocate the file in the same source folder to get the results")
-#         return
+
+def preprocess(pil_img):
+    
+    rgb = np.array(pil_img.convert("RGB"))               # (H, W, 3) in RGB, drops alpha/grayscale issues
+    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)           # match training channel order
+    bgr = cv2.resize(bgr, (IMG_SIZE, IMG_SIZE))          # same resize as training (INTER_LINEAR)
+    arr = bgr.astype("float32") / 255.0
+    return np.expand_dims(arr, axis=0)                   # (1, 299, 299, 3)
+
+
+def _predict(pil_img):
+    prediction = model.predict(preprocess(pil_img), verbose=0)
+    label = 1 if prediction[0] > 0.5 else 0              # 1 = real, 0 = AI-generated
+    return label, prediction[0]
 
 
 def predict_imagefromfile(image):
-#     if image is not None:
-        img_array = preprocess_imagefromfile(image)
-#         if img_array is not None:
-        prediction = model.predict(img_array)
-        label = 1 if prediction[0] > 0.5 else 0
-        return label,prediction[0]
-#         else:
-#             print("No file Found try to relocate the file in the same source folder to get the results")
-#             return 2, 0.00
-#     else:
-#         print("No file Found try to relocate the file in the same source folder to get the results")
-#         return 2, 0.00
+    """image: a PIL image (from the Streamlit uploader)."""
+    return _predict(image)
 
-def preprocess_image(image_url):
-    response = requests.get(image_url)
+
+def predict_image(image_url):
+    """image_url: a link to an image."""
+    response = requests.get(image_url, timeout=15)
+    response.raise_for_status()
     img = PILImage.open(BytesIO(response.content))
-    # image=cv2.imread(image)
-    img = img.resize((299, 299))
-    img_array = np.array(img)
-    img_array=img_array.astype('float64')
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array /= 255.0
+    return _predict(img)
 
-    return img_array
-
-
-def predict_image(image):
-    img_array = preprocess_image(image)
-    prediction = model.predict(img_array)
-    label = 1 if prediction[0] > 0.5 else 0
-
-    return label,prediction[0]
 
 def final_resultURL(image_url):
-#     image_url = 'https://cdn.pixabay.com/photo/2024/04/13/10/20/peacock-8693634_1280.jpg' #enter url here
-    result,p = predict_image(image_url)
-    if result==1:
-        print('real')
-    else:
-        print('fake')
-    print('probability of real_image is ',p.item())
-    
-def final_resultPath():
-    image_path = 'img1- (30).jpg' #enter url here
-    image=cv2.imread(image_path)
-    result,p = predict_imagefromfile(image)
-    if result==1:
-        print('real')
-    else:
-        print('fake')
-    print('probability of real_image is ',p.item())
+    result, p = predict_image(image_url)
+    print("real" if result == 1 else "fake")
+    print("probability of real_image is ", p.item())
+
+
+def final_resultPath(image_path="img1- (30).jpg"):
+    img = PILImage.open(image_path)
+    result, p = predict_imagefromfile(img)
+    print("real" if result == 1 else "fake")
+    print("probability of real_image is ", p.item())
